@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Frais StarkNet</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0061a6">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.css" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@0.1.7/dist/cdn/material-dynamic-colors.min.js"></script>
+<script src="js/costs.js?v=1"></script>
+<script src="js/listings.js?v=1"></script>
+<script>
+var melon = "img/rules_Melon_C.png";
+
+function toggleDropStatus(cost, maxCost) {
+  var searchParams = new URLSearchParams(window.location.search);
+  let icon = " - ";
+  if( searchParams.has("dropCost") ) {
+    let lastCost = parseFloat(searchParams.get("dropCost"));
+    icon = lastCost == cost ? "<i class='blue-text'>trending_flat</i>" : (lastCost >= cost ? "<i class='green-text'>trending_down</i>" : "<i class='red-text'>trending_up</i>");
+  }
+
+  let drop = cost < maxCost;
+  let perc = icon + (100*cost/maxCost).toFixed(0) + "% du seuil";
+
+  if( drop ) {
+    document.querySelector("#maxPrice").innerHTML = "<i class='primary-container'>check</i> les drops sont actifs" + perc;
+    document.querySelector("#maxPrice").classList.remove("error-border", "error-container");
+  } else {
+    document.querySelector("#maxPrice").innerHTML = "<span class='clock' role='img'></span> les drops sont en attente" + perc;
+    document.querySelector("#maxPrice").classList.add("error-border", "error-container");
+  }
+
+  if( searchParams.get("drop") == "false" && drop )
+    sendNotification("✅ drops de nouveau actifs", "https://julienmaille.github.io/rules-market-watcher/" + melon);
+  else if( searchParams.get("drop") == "true" && !drop )
+    sendNotification("🕓 les drops viennent de repasser en attente", "https://julienmaille.github.io/rules-market-watcher/" + melon);
+  searchParams.set("drop", drop);
+  searchParams.set("dropCost", cost);
+  history.replaceState(null, null, "?"+searchParams.toString());
+}
+
+// notifications
+function isPushNotificationSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window;
+}
+
+function registerNotifications() {
+  if( !isPushNotificationSupported() ) return;
+  navigator.serviceWorker.register("js/sw.js");
+  if( Notification.permission !== "granted" )
+    Notification.requestPermission();
+}
+
+function sendNotification(content, picture) {
+  if( !isPushNotificationSupported() ) return;
+  Notification.requestPermission((result) => {
+    if( result != "granted" ) return;
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.showNotification(content, {icon: picture});
+    });
+  });
+}
+
+async function main() {
+  document.querySelector("#hour").innerHTML = "Aujourd'hui à " + (new Date).toLocaleTimeString();
+
+  let ethEurRate = parseFloat((await fetchEthPrice()).data.amount);
+  let maxGasPrice = parseInt((await fetchMaxGasPrice()).maximum_gas_price, 16);
+  let gasPrice = parseInt((await fetchGasPrice()).gas_price, 16);
+
+  toggleDropStatus(gasPrice, maxGasPrice);
+
+  gasPrice /= 10**18;
+
+  let feeETH = gasPrice*buyGasUsage;
+  let feeEUR = feeETH*ethEurRate;
+  document.querySelector("#feeIcon").innerHTML = iconCost(feeEUR);
+  document.querySelector("#feeBuyETH").innerHTML = feeETH.toFixed(7) + " ETH";
+  document.querySelector("#feeBuyEUR").innerHTML = feeEUR.toFixed(2);
+  document.querySelector("#maxFeeBuyETH").innerHTML = (1.5*feeETH).toFixed(7) + " ETH";
+  document.querySelector("#maxFeeBuyEUR").innerHTML = (1.5*feeEUR).toFixed(2);
+
+  feeETH = gasPrice*sellGasUsage;
+  feeEUR = feeETH*ethEurRate;
+  document.querySelector("#feeSellETH").innerHTML = feeETH.toFixed(7) + " ETH";
+  document.querySelector("#feeSellEUR").innerHTML = feeEUR.toFixed(2);
+  document.querySelector("#maxFeeSellETH").innerHTML = (1.5*feeETH).toFixed(7) + " ETH";
+  document.querySelector("#maxFeeSellEUR").innerHTML = (1.5*feeEUR).toFixed(2);
+
+  feeETH = gasPrice*giftGasUsage;
+  feeEUR = feeETH*ethEurRate;
+  document.querySelector("#feeGiftETH").innerHTML = feeETH.toFixed(7) + " ETH";
+  document.querySelector("#feeGiftEUR").innerHTML = feeEUR.toFixed(2);
+  document.querySelector("#maxFeeGiftETH").innerHTML = (1.5*feeETH).toFixed(7) + " ETH";
+  document.querySelector("#maxFeeGiftEUR").innerHTML = (1.5*feeEUR).toFixed(2);
+
+  setTimeout(() => {main();}, 5*60*1000); // refresh in 5 mins
+}
+
+ready(function() {
+  initDarkMode();
+  document.querySelector("#melon").src = melon;
+  document.querySelector("#melon-s").src = melon;
+  registerNotifications();
+  main();
+});
+</script>
+<style>
+  :root {--size: 15.2px;}
+  nav {min-height: 48px !important;}
+  #feeGiftETH, #maxFeeGiftETH, #feeSellETH, #maxFeeSellETH, #feeBuyETH, #maxFeeBuyETH {color: #888;}
+  #feeIcon {animation: scaleIn .8s infinite linear;}
+  @keyframes scaleIn {
+    from {opacity: 1; transform: scale(.75, .75);}
+    to {opacity: 0; transform: scale(1.75, 1.75);}
+  }
+  .clock::after {content: '🕛';animation: clock 2s linear infinite;}
+  @keyframes clock {
+     8.33% {content: '🕐';}
+    16.66% {content: '🕑';}
+    25.00% {content: '🕒';}
+    33.33% {content: '🕓';}
+    41.66% {content: '🕔';}
+    50.00% {content: '🕕';}
+    58.33% {content: '🕖';}
+    66.66% {content: '🕗';}
+    75.00% {content: '🕘';}
+    83.33% {content: '🕙';}
+    91.66% {content: '🕚';}
+}
+</style>
+</head>
+<body class="light">
+  <nav class="primary no-space s">
+    <div class="space"></div>
+    <a class="circle round small" href="index.html"><i class="small">home</i></a>
+    <a class="circle round small" href="offers.html"><i class="small">shopping_cart</i></a>
+    <a class="circle round small" href="transfers.html"><i class="small">receipt_long</i></a>
+    <a class="circle round small" href="user.html"><i class="small">person_search</i></a>
+    <a class="primary-container medium-elevate circle round small" href="fee.html"><i class="small">currency_exchange</i></a>
+    <a class="circle round small" href="packs.html"><i class="small">view_carousel</i></a>
+    <a class="circle round small" href="cards.html"><i class="small">filter_1</i></a>
+    <a class="circle round small" href="fame.html"><i class="small">workspace_premium</i></a>
+    <div class="max"></div>
+    <a class="circle round small" href="feedback.html"><i class="small">campaign</i></a>
+    <button class="circle transparent" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i class="small">light_mode</i></button>
+  </nav>
+<header class="responsive fixed primary medium-elevate m l">
+  <nav>
+    <a href="index.html" class="button circle transparent"><i>home</i></a>
+    <a href="offers.html" class="chip transparent"><i>shopping_cart</i>Offres</a>
+    <a href="transfers.html" class="chip transparent"><i>receipt_long</i>Ventes</a>
+    <a href="user.html" class="chip transparent"><i>person_search</i>Profils</a>
+    <a href="fee.html" class="chip primary-container medium-elevate"><i>currency_exchange</i>Frais</a>
+    <a href="packs.html" class="chip transparent"><i>view_carousel</i>Packs</a>
+    <a href="cards.html" class="chip transparent"><i>filter_1</i>Cartes</a>
+    <a href="fame.html" class="chip transparent"><i>workspace_premium</i>Hall of Fame</a>
+    <div class="max"></div>
+    <a href="feedback.html" class="button circle transparent"><i>campaign</i></a>
+    <a class="button transparent circle" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i>light_mode</i></a>
+  </nav>
+</header>
+<main class="container margin center-align">
+<div class="grid">
+  <div class="l m l3 m2"></div>
+  <div id="text" class="l3 m4 s12">
+    <div id="hour" class="primary-text"></div>
+    <div id="drops" class="margin">
+      <div id="maxPrice" class="border chip primary-border">
+        <a class='loader small'></a>Chargement...
+      </div>
+      <div class="tooltip bottom primary padding">
+        <div class="medium-text">
+        L'ouverture d'un pack sur la blockchain<br>
+        génère des frais à la charge de Rules.<br>
+        Ces frais varient d'heure en heure, ainsi<br>
+        l'ouverture des packs est suspendue<br>
+        lorque les frais sont si élevés qu'ils<br>
+        compromettent la rentabilité d'un pack à 9€.
+        </div>
+      </div>
+    </div>
+    <div>
+      <span id="feeIcon"></span>
+      Achat
+    </div>
+    <div class="primary-text"><span id="feeBuyETH"></span> (<span id="feeBuyEUR"></span>€)</div>
+    <div class="primary-text">Max <span id="maxFeeBuyETH"></span> (<span id="maxFeeBuyEUR"></span>€)</div>
+    <div class="space"></div>
+
+    <div>Mise en vente</div>
+    <div class="primary-text"><span id="feeSellETH"></span> (<span id="feeSellEUR"></span>€)</div>
+    <div class="primary-text">Max <span id="maxFeeSellETH"></span> (<span id="maxFeeSellEUR"></span>€)</div>
+    <div class="space"></div>
+
+    <div>Echange</div>
+    <div class="primary-text"><span id="feeGiftETH"></span> (<span id="feeGiftEUR"></span>€)</div>
+    <div class="primary-text">Max <span id="maxFeeGiftETH"></span> (<span id="maxFeeGiftEUR"></span>€)</div>
+
+    <article class="center medium-width">
+      <h6 class="center-align">Légende des frais starkNet</h6>
+      frais &lt 0.30€ 🟢<br>
+      frais &lt 0.60€ 🟡<br>
+      frais &lt 0.90€ 🔴<br>
+      frais &gt 0.90€ 🔥
+    </article>
+  </div>
+  <div class="l3 m4 l m"><img id="melon"/></div>
+  <div class="s12 s"><img class="responsive" id="melon-s"/></div>
+</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Hall of fame</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0061a6">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.css" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@0.1.7/dist/cdn/material-dynamic-colors.min.js"></script>
+<script src="js/cards.js?v=2"></script>
+<script src="js/listings.js?v=2"></script>
+<script>
+allCardModels = allCardModels.data.allCardModels;
+
+// table creation and population
+function createTable(id, text) {
+  return `
+  <table id="${id}" class="s6 m4 l2 no-space">
+    <thead>
+      <tr>
+        <th>Rang<\/th>
+        <th><\/th>
+        <th>Score<\/th>
+     <\/tr>
+    <\/thead>
+    <tbody><\/tbody>
+  <\/table>`;
+}
+
+function insertInTable(pos, row) {
+  let tableId = "#tableHigh";
+  if( pos <= 50 ) tableId = "#table50";
+  else if( pos <= 100 ) tableId = "#table100";
+  else if( pos <= 150 ) tableId = "#table150";
+  else if( pos <= 200 ) tableId = "#table200";
+  else if( pos <= 250 ) tableId = "#table250";
+  else if( pos <= 300 ) tableId = "#table300";
+
+  const tableRef = document.querySelector(tableId + " tbody");
+  var newRow = tableRef.insertRow(tableRef.rows.length);
+  newRow.innerHTML = row;
+}
+
+// main
+async function main() {
+  let tables = {
+    table50: "50",
+    table100: "100",
+    table150: "150",
+    table200: "200",
+    table250: "250",
+    table300: "300"
+  };
+
+  let t = "";
+  for( const key in tables )
+    t += createTable(key, tables[key]);
+  document.querySelector("#tables").innerHTML = t;
+
+  let formatter = Intl.NumberFormat('en', {notation: 'compact', maximumSignificantDigits: 3});
+
+  ranks = (await fetchHallOfFame(300))['hits'];
+  let pos = 1;
+  for( const u of ranks ) {
+    let score = formatter.format(u.cScore);
+
+    if( pos==1 ) icon = "<span class='emoji'>🥇</span>";
+    else if( pos==2 ) icon = "<span class='emoji'>🥈</span>";
+    else if( pos==3 ) icon = "<span class='emoji'>🥉</span>";
+    else icon = pos;
+
+    let url1 = "user.html?user=" + u.username;
+    let url2 = "https://rules.art/user/" + u.username + "/cards";
+    let name = "<a href='" + url1 + "'>" + u.username +"</a>"
+             + " <a class='m l' href='" + url2 + "' target='_blank'><img class='responsive' src='img/rules-logo.png'></a>";
+
+    insertInTable(pos, `<tr><td>${icon}</td><td>${name}</td><td>${score}</td></tr>`);
+    pos++;
+  }
+}
+
+ready(function() {
+  initDarkMode();
+  main();
+});
+</script>
+<style>
+  :root {--size: 15.2px;}
+  nav {min-height: 48px !important;}
+  #tables table {border: 1px solid #80808045; text-align: center;}
+  #tables a:hover {text-decoration: underline;}
+  #tables td:nth-child(2) {text-align: right;}
+  #tables table td, #tables table th {width: unset;}
+  .dark #table50 a, .dark #table100 a, .dark #table50 thead th, .dark  #table100 thead th {color: #ccad00;}
+  .dark #table150 a, .dark #table200 a, .dark #table150 thead th, .dark #table200 thead th {color: #888888;}
+  .dark #table250 a, .dark #table300 a, .dark #table250 thead th, .dark #table300 thead th {color: #a36629;}
+  #table50  a, #table100 a, #table50 thead th,  #table100 thead th {color: #bd9a0f;}
+  #table150 a, #table200 a, #table150 thead th, #table200 thead th {color: #666666;}
+  #table250 a, #table300 a, #table250 thead th, #table300 thead th {color: #a36629;}
+  #table50  tr:nth-child(odd), #table100 tr:nth-child(odd) {background-color: #bd9a0f15;}
+  #table150 tr:nth-child(odd), #table200 tr:nth-child(odd) {background-color: #88888820;}
+  #table250 tr:nth-child(odd), #table300 tr:nth-child(odd) {background-color: #a3662920;}
+  @media only screen and (max-width: 600px) {
+    #tables table {font-size: 10px !important;}
+  }
+</style>
+</head>
+<body class="light">
+  <nav class="primary no-space s">
+    <div class="space"></div>
+    <a class="circle round small" href="index.html"><i class="small">home</i></a>
+    <a class="circle round small" href="offers.html"><i class="small">shopping_cart</i></a>
+    <a class="circle round small" href="transfers.html"><i class="small">receipt_long</i></a>
+    <a class="circle round small" href="user.html"><i class="small">person_search</i></a>
+    <a class="circle round small" href="fee.html"><i class="small">currency_exchange</i></a>
+    <a class="circle round small" href="packs.html"><i class="small">view_carousel</i></a>
+    <a class="circle round small" href="cards.html"><i class="small">filter_1</i></a>
+    <a class="primary-container medium-elevate circle round small" href="fame.html"><i class="small">workspace_premium</i></a>
+    <div class="max"></div>
+    <a class="circle round small" href="feedback.html"><i class="small">campaign</i></a>
+    <button class="circle transparent" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i class="small">light_mode</i></button>
+  </nav>
+<header class="responsive fixed primary medium-elevate m l">
+  <nav>
+    <a href="index.html" class="button circle transparent"><i>home</i></a>
+    <a href="offers.html" class="chip transparent"><i>shopping_cart</i>Offres</a>
+    <a href="transfers.html" class="chip transparent"><i>receipt_long</i>Ventes</a>
+    <a href="user.html" class="chip transparent"><i>person_search</i>Profils</a>
+    <a href="fee.html" class="chip transparent"><i>currency_exchange</i>Frais</a>
+    <a href="packs.html" class="chip transparent"><i>view_carousel</i>Packs</a>
+    <a href="cards.html" class="chip transparent"><i>filter_1</i>Cartes</a>
+    <a href="fame.html" class="chip primary-container medium-elevate"><i>workspace_premium</i>Hall of Fame</a>
+    <div class="max"></div>
+    <a href="feedback.html" class="button circle transparent"><i>campaign</i></a>
+    <a class="button transparent circle" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i>light_mode</i></a>
+  </nav>
+</header>
+<main>
+  <div class="grid small-margin" id="tables"></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Informations sur une carte</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0061a6">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.css" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@0.1.7/dist/cdn/material-dynamic-colors.min.js"></script>
+<script src="js/cards.js?v=2"></script>
+<script src="js/listings.js?v=1"></script>
+<script src="js/costs.js?v=1"></script>
+<script>
+var recentDef = 2 * 60 * 60 * 1000; // recent is hard-coded to 2h
+allCardModels = allCardModels.data.allCardModels;
+
+function listings(hits, ethEurRate, cardID) {
+  let dateOptions = {year: "2-digit", month: "2-digit", day: "2-digit"};
+  let timeOptions = {hour: "2-digit", minute: "2-digit"};
+  let euroOptions = {style: "currency", currency: "EUR", maximumFractionDigits: 0};
+  let euroFmt = new Intl.NumberFormat([], euroOptions);
+
+  for( listing of hits )
+    listing.cardInfo = cardInfo("date" in listing ? listing.cardModelId : cardID);
+
+  let sortRule = document.querySelector("#sorting").value;
+  if( sortRule == "price" ) hits.sort(sortByPrice);
+  if( sortRule == "date" ) hits.sort(sortByDate);
+  if( sortRule == "serial" ) hits.sort(sortBySerial);
+  if( sortRule == "cardprice" ) hits.sort(sortByCardPrice);
+  if( sortRule == "cardserial" ) hits.sort(sortByCardSerial);
+  //console.log(hits);
+
+  let sum = 0, nbPack = 0, nbGift = 0, nbSold = 0, nbOffer = 0;
+  for( const listing of hits ) {
+    let missing = !("date" in listing);
+    let card = listing.cardInfo;
+    let date = new Date(listing.date);
+
+    let priceEUR = "???";
+    if( listing.fromStarknetAddress != 0 ) {
+      priceEUR = missing ? "-" : "Gift";
+      if( !missing ) nbGift++;
+
+      let priceETH = parseInt(listing.price, 16)/10**18;
+      if( listing.available ) {
+          priceEUR = "Offre à " + euroFmt.format(priceETH * ethEurRate);
+          nbOffer++;
+      } else if( priceETH > 0 ) {
+          priceEUR = "Acheté " + euroFmt.format(priceETH * ethEurRate);
+          sum += priceETH * ethEurRate;
+          nbSold++;
+      }
+    } else if( !missing ) {
+        priceEUR = "Pack";
+        nbPack++;
+    }
+
+    let url = "https://rules.art/card/" + card.slug + "/" + listing.serialNumber;
+
+    let cardIsCommon = card.scarcity.name == "Common";
+    let artist = card.artist.displayName;
+
+    let recent = (new Date - date < recentDef);
+    let lessRecent = (new Date - date < recentDef*4);
+    let classes = recent ? "recent" : lessRecent ? "lessRecent" : "old";
+    classes += topTier.includes(card.artist.slug) ? " toptier" : " lowtier";
+    if( missing ) classes += " missing";
+    if( listing.available ) classes += " onsale";
+    let buyerOnClick = `class="ID${listing.toStarknetAddress}" onClick="fetchUser(this, '${listing.toStarknetAddress}'); return false;"`;
+    let dateText = date.toLocaleString([], dateOptions) + "<span class='m l'> " + date.toLocaleString([], timeOptions) + "</span>";
+
+    let t = "<td id='card'><a href='" + url + "' target='_blank'>" + artist + "</a></td>"
+          + "<td id='serial'>" + listing.serialNumber + "</td>"
+          + "<td id='price'>" + priceEUR + "</td>"
+          + "<td id='who'" + buyerOnClick + "><i class='tiny'>person_search</i> click</td>"
+          + "<td id='date'>" + dateText + "</td>";
+    insertInTable(t, cardIsCommon, card.scarcity.name, listing.serialNumber, classes);
+  }
+
+  let update = nbPack + " packs et " + nbGift + " gifts<i>atr</i>" + euroFmt.format(sum) + " sur " + nbSold + " ventes et " + nbOffer + " offres en cours";
+  document.querySelector("#update").innerHTML = document.querySelector("#update-2").innerHTML = update;
+};
+
+function listMissing(hits) {
+  let existings = hits.map(a => a.serialNumber);
+  let maxSerial = Math.max(...existings);
+
+  var missing = new Array();
+  for( var i = 1; i <= maxSerial; i++ )
+    if( existings.indexOf(i) == -1 ) missing.push({serialNumber: i});
+  return missing;
+}
+
+// table creation and population
+function createTable(id, text) {
+  return `
+  <table id="${id}" class="s12 m6 l3 no-space center-align">
+    <thead>
+      <tr>
+        <th colspan=5>${text}<\/th>
+     <\/tr>
+    <\/thead>
+    <tbody><\/tbody>
+  <\/table>`;
+}
+
+function insertInTable(row, cardIsCommon, scarcity, serialNumber, classes) {
+  let tableId = "#tableHigh";
+  if( !cardIsCommon ) tableId = "#table" + scarcity + (serialNumber <= 1000 ? "LowThousand" : "High");
+  else if( serialNumber <= 10 ) tableId = "#tableLowTen";
+  else if( serialNumber <= 100 ) tableId = "#tableLowHundred";
+  else if( serialNumber <= 500 ) tableId = "#tableLowFiveHundred";
+  else if( serialNumber <= 1000 ) tableId = "#tableLowThousand";
+  else if( serialNumber <= 2000 ) tableId = "#tableLowTwoThousand";
+  else if( serialNumber <= 3000 ) tableId = "#tableLowThreeThousand";
+
+  let roundClass = "notround";
+  if( serialNumber.toPrecision(1)==serialNumber ) roundClass = "round";
+  if( [69, 333, 420, 666, 667, 777].includes(serialNumber) ) roundClass = "round";
+
+  const tableRef = document.querySelector(tableId + " tbody");
+  var newRow = tableRef.insertRow();
+  newRow.className = roundClass + " " + classes;
+  newRow.innerHTML = row;
+}
+
+function cardInfo(modelId) {
+  return allCardModels.find(({ id }) => id == modelId);
+}
+
+// filtering and sorting
+function setVisibility(className, visible) {
+  elements = document.getElementsByClassName(className);
+  for( var i = 0; i < elements.length; i++ )
+    elements[i].style.display = visible ? "none" : "table-row";
+
+  var searchParams = new URLSearchParams(window.location.search);
+  searchParams.set(className, visible);
+  history.replaceState(null, null, "?"+searchParams.toString());
+
+  hideEmptyTables();
+}
+
+function hideEmptyTables() {
+  // Show all tables
+  let tables = document.querySelectorAll('#tables table');
+  for( const t of tables ) t.style.display = "table";
+
+  // hide empty tables based on tbody height
+  for( const t of tables ) {
+    if( t.querySelector('tbody').getBoundingClientRect().height == 0 )
+      t.style.display = "none";
+  }
+}
+
+function setSorting(value) {
+  var searchParams = new URLSearchParams(window.location.search);
+  searchParams.set("sorting", value);
+  history.replaceState(null, null, "?"+searchParams.toString());
+  main();
+}
+
+function setCardID(value) {
+  var searchParams = new URLSearchParams(window.location.search);
+  searchParams.set("card", value);
+  history.replaceState(null, null, "?"+searchParams.toString());
+}
+
+function fetchUser(clickedDom, userAddresses) {
+  clickedDom.innerHTML = "<a class='loader small'></a>";
+  fetchUserNames([userAddresses]).then(json => {
+    for( const user of json.data.usersByStarknetAddresses ) {
+      let userClass = ".ID" + userAddresses;
+      document.querySelectorAll(userClass).forEach(function(td) {
+        td.removeAttribute("onclick");
+        let url = "https://rules.art/user/" + user.slug + "/cards";
+        td.innerHTML = "<a href='user.html?user=" + user.slug + "'>" + user.username + "</a>"
+                     + " <a class='m l' href='" + url + "' target='_blank'><img class='responsive' src='img/rules-logo.png'></a>";
+      });
+    }
+  });
+}
+
+// main
+async function main() {
+  let cardID = document.getElementById('cardID').value;
+  if( cardID==" ") return;
+  setCardID(cardID);
+
+  document.querySelector("#update").classList.remove("hide");
+  document.querySelector("#update-2").classList.remove("hide");
+  document.querySelector("#update").innerHTML = document.querySelector("#update-2").innerHTML = "<a class='loader small'></a>Chargement ...";
+  let tables = {
+    tableHalloweenLowThousand: "Hall<span class='emoji'>🎃</span>ween inf. 1000",
+    tableHalloweenHigh: "Hall<span class='emoji'>🎃</span>ween sup 1000",
+    tablePlatiniumLowThousand: "Platine",
+    tableLowTen: "Inférieur à 10",
+    tableLowHundred: "Inférieur à 100",
+    tableLowFiveHundred: "Inférieur à 500",
+    tableLowThousand: "Inférieur à 1000",
+    tableLowTwoThousand: "Inférieur à 2000",
+    tableLowThreeThousand: "Inférieur à 3000",
+    tableHigh: "Supérieur à 3000"
+  };
+
+  let t = "";
+  for( const key in tables )
+    t += createTable(key, tables[key]);
+  document.querySelector("#tables").innerHTML = t;
+
+  let searchParams = new URLSearchParams(window.location.search);
+  let hiddenClass = [];
+  for( const [key, value] of searchParams ) {
+    if( value=="true" ) {
+      document.querySelector("#"+key).checked = true;
+      hiddenClass.push(key);
+    }
+    if( key=="sorting" ) document.querySelector("#"+key).value=value;
+  }
+
+  let prm = [];
+  prm.push(fetchEthPrice().then(res => parseFloat(res.data.amount)));
+
+  let blocks = [0,400,800,1200,1600,2000,2400,2800,3200,3600];
+  for( var i=0; i<blocks.length; i++ ) {
+    if( i==blocks.length-1 )
+      prm.push(fetchTransfers("serialNumber>"+blocks[blocks.length-1]+" AND cardModelId:"+cardID));
+    else
+      prm.push(fetchTransfers("serialNumber>"+blocks[i]+" AND serialNumber<="+blocks[i+1]+" AND cardModelId:"+cardID));
+  }
+  prm.push(fetchOffers("cardModelId:"+cardID, "price:-0000000000000000000000"));
+
+  let res = await Promise.all(prm);
+  let ethEurRate = res[0];
+  let hits = [];
+  for( var h=1; h<res.length; h++ ) {
+    hits = hits.concat(res[h].hits);
+    if( res[h].hits.length>=1000 ) window.alert("Résultats manquants, signalez-moi le problème si il persiste");
+    console.log(res[h].hits.length);
+  }
+
+  hits = hits.concat(listMissing(hits));
+  listings(hits, ethEurRate, cardID);
+
+  for( const key of hiddenClass )
+    setVisibility(key, true);
+  if( hiddenClass.length==0 ) hideEmptyTables();
+}
+
+ready(function() {
+  initDarkMode();
+
+  let select = document.getElementById('cardID');
+  function sortByCard(a, b) { return a.artist.slug < b.artist.slug ? -1 : 1; }
+  allCardModels = allCardModels.sort(sortByCard);
+  for( var c of allCardModels ) {
+    var opt = document.createElement('option');
+    opt.value = c.id;
+    opt.innerHTML = c.artist.displayName + " " + c.scarcity.name;
+    select.appendChild(opt);
+  }
+  let searchParams = new URLSearchParams(window.location.search);
+  if( searchParams.has("card") )
+   select.value = searchParams.get("card");
+
+  main();
+});
+</script>
+<style>
+  :root {--size: 15.2px;}
+  nav {min-height: 48px !important;}
+  .dark .recent #date {color: #FF0;}
+  .dark .lessRecent #date {color: #BB0;}
+  .light .recent #date {background: #FF0;}
+  .light .lessRecent #date {background: #FFC;}
+  #card {text-align: right;}
+  #who {cursor: help;}
+  #date {color: #888; font-size: 11px;}
+  .missing #who, .missing #date {display: none;}
+  .onsale #price {color: #B0B;}
+  .emoji {font-size: 10pt;}
+  .hide {display: none;}
+  #tables table {border: 1px solid #80808045; align-self: flex-start;}
+  #tables a:hover {text-decoration: underline;}
+  #tables table td, #tables table th {width: unset;}
+  #tableHalloweenLowThousand #serial, #tableHalloweenLowThousand th,
+  #tableHalloweenHigh #serial, #tableHalloweenHigh th {color: #ff9800;}
+  #tablePlatiniumLowThousand #serial, #tablePlatiniumLowThousand th {color: #ccad00;}
+  #tableLowTen #serial, #tableLowTen th {color: #cf5ffc;}
+  #tableLowHundred #serial, #tableLowHundred th {color: #03a9f4;}
+  #tableLowFiveHundred #serial, #tableLowFiveHundred th {color: #4caf50;}
+  #tableHalloweenLowThousand, #tableHalloweenHigh {background-color: #ffa82715;}
+  #tablePlatiniumLowThousand {background-color: #ffe34415;}
+  #tableLowTen {background-color: #db81ff15;}
+  #tableLowHundred {background-color: #39c2ff15;}
+  #tableLowFiveHundred {background-color: #65fb6b15;}
+  #tableLowThousand {background-color: #88888815;}
+  #tableLowTwoThousand {background: repeating-linear-gradient( 320deg, #88888812, #88888812 16px, transparent 16px, transparent 32px );}
+  #tableLowThreeThousand {background: repeating-linear-gradient( 40deg, #88888812, #88888812 32px, transparent 32px, transparent 64px );}
+  @media only screen and (max-width: 600px) {
+    #tables table {font-size: 10px;}
+    #date {font-size: 9px !important;}
+  }
+</style>
+</head>
+<body class="light">
+  <nav class="primary no-space s">
+    <div class="space"></div>
+    <a class="circle round small" href="index.html"><i class="small">home</i></a>
+    <a class="circle round small" href="offers.html"><i class="small">shopping_cart</i></a>
+    <a class="circle round small" href="transfers.html"><i class="small">receipt_long</i></a>
+    <a class="circle round small" href="user.html"><i class="small">person_search</i></a>
+    <a class="circle round small" href="fee.html"><i class="small">currency_exchange</i></a>
+    <a class="circle round small" href="packs.html"><i class="small">view_carousel</i></a>
+    <a class="primary-container medium-elevate circle round small" href="cards.html"><i class="small">filter_1</i></a>
+    <a class="circle round small" href="fame.html"><i class="small">workspace_premium</i></a>
+    <div class="max"></div>
+    <a class="circle round small" href="feedback.html"><i class="small">campaign</i></a>
+    <button class="circle transparent" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i class="small">light_mode</i></button>
+  </nav>
+<header class="responsive fixed primary medium-elevate m l">
+  <nav>
+    <a href="index.html" class="button circle transparent"><i>home</i></a>
+    <a href="offers.html" class="chip transparent"><i>shopping_cart</i>Offres</a>
+    <a href="transfers.html" class="chip transparent"><i>receipt_long</i>Ventes</a>
+    <a href="user.html" class="chip transparent"><i>person_search</i>Profils</a>
+    <a href="fee.html" class="chip transparent"><i>currency_exchange</i>Frais</a>
+    <a href="packs.html" class="chip transparent"><i>view_carousel</i>Packs</a>
+    <a href="cards.html" class="chip primary-container medium-elevate"><i>filter_1</i>Cartes</a>
+    <a href="fame.html" class="chip transparent"><i>workspace_premium</i>Hall of Fame</a>
+    <div class="max"></div>
+    <span id="update" class="chip fill hide l"></span>
+    <a href="feedback.html" class="button circle transparent"><i>campaign</i></a>
+    <a class="button transparent circle" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i>light_mode</i></a>
+  </nav>
+</header>
+<main>
+<nav class="wrap small-margin">
+  <div class="field label border small">
+    <select class="form-select" id="cardID" onChange="main();">
+      <option value=" " selected="true" disabled="disabled">Sélectionner</option>
+    </select>
+    <label class="active">Carte</label>
+    <i>arrow_drop_down</i>
+  </div>
+  <label class="checkbox">
+    <input type="checkbox" id="old" onchange="setVisibility('old', this.checked);">
+    <span>récent</span>
+  </label>
+  <label class="checkbox">
+    <input type="checkbox" id="notround" onchange="setVisibility('notround', this.checked);">
+    <span>chiffre rond</span>
+  </label>
+  <div class="field label suffix border small">
+    <select class="form-select" id="sorting" onChange="setSorting(this.value);">
+      <option value="serial">serial</option>
+      <option value="price">prix</option>
+      <option value="date">date</option>
+    </select>
+    <label class="active">Tri</label>
+    <i>arrow_drop_down</i>
+  </div>
+</nav>
+<div id="update-2" class="chip fill center small-margin s m hide"></div>
+<div class="grid small-margin" id="tables"></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Feedback</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0061a6">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.css" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@0.1.7/dist/cdn/material-dynamic-colors.min.js"></script>
+<script src="js/listings.js?v=1"></script>
+<script>
+function pingDiscord(msg="Quelqu'un est tombé sur l'easter egg") {
+  let a = 'aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTA1Nzk3MTcwMTY1MDAzODgzNC8xR09FY2FLRlI2RUo5elhOT2JzRzFaY1ZFdHNOVHFYY2dDRkd2Ym44cUhqSm1lSTQtWUU5T0RlbVJlZVFVRmk3bkV0eA';
+  fetch(atob(a), {
+    "headers": {
+      'Content-Type': 'application/json',
+    },
+    "body": `{
+      "content": "${msg}",
+      "embeds": null,
+      "username": "Feedback"
+    }`,
+    "method": "POST"
+  });
+}
+
+function sendClicked() {
+  let tarea = document.querySelector('#msg');
+  let label = document.querySelector('#btnText');
+  pingDiscord(tarea.value);
+  tarea.disabled = "true";
+  label.innerHTML = "Merci";
+}
+
+ready(function() {
+  initDarkMode();
+});
+</script>
+<style>
+  :root {--size:15.2px;}
+  nav {min-height: 48px !important;}
+  #texte {text-align: justify;}
+</style>
+</head>
+<body class="light">
+  <nav class="primary no-space s">
+    <div class="space"></div>
+    <a class="circle round small" href="index.html"><i class="small">home</i></a>
+    <a class="circle round small" href="offers.html"><i class="small">shopping_cart</i></a>
+    <a class="circle round small" href="transfers.html"><i class="small">receipt_long</i></a>
+    <a class="circle round small" href="user.html"><i class="small">person_search</i></a>
+    <a class="circle round small" href="fee.html"><i class="small">currency_exchange</i></a>
+    <a class="circle round small" href="packs.html"><i class="small">view_carousel</i></a>
+    <a class="circle round small" href="cards.html"><i class="small">filter_1</i></a>
+    <a class="circle round small" href="fame.html"><i class="small">workspace_premium</i></a>
+    <div class="max"></div>
+    <a class="primary-container medium-elevate circle round small" href="feedback.html"><i class="small">campaign</i></a>
+    <button class="circle transparent" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i class="small">light_mode</i></button>
+  </nav>
+<header class="responsive fixed primary medium-elevate m l">
+  <nav>
+    <a href="index.html" class="button circle transparent"><i>home</i></a>
+    <a href="offers.html" class="chip transparent"><i>shopping_cart</i>Offres</a>
+    <a href="transfers.html" class="chip transparent"><i>receipt_long</i>Ventes</a>
+    <a href="user.html" class="chip transparent"><i>person_search</i>Profils</a>
+    <a href="fee.html" class="chip transparent"><i>currency_exchange</i>Frais</a>
+    <a href="packs.html" class="chip transparent"><i>view_carousel</i>Packs</a>
+    <a href="cards.html" class="chip transparent"><i>filter_1</i>Cartes</a>
+    <a href="fame.html" class="chip transparent"><i>workspace_premium</i>Hall of Fame</a>
+    <div class="max"></div>
+    <a href="feedback.html" class="button circle primary-container medium-elevate "><i>campaign</i></a>
+    <a class="button transparent circle" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i>light_mode</i></a>
+  </nav>
+</header>
+<main>
+<div class="container margin">
+  <div class="space l m"></div>
+  <div class="grid">
+    <div class="m l m1 l3"></div>
+    <div class="s12 m10 l6">
+      <article class="fill">
+        <div class="row">
+          <div class="col min">
+            <h2>📣</h2>
+          </div>
+          <div class="col">
+            <h5 class="no-margin">Feedback</h5>
+            <div>utilisateur</div>
+          </div>
+        </div>
+        <div class="space"></div>
+        <div class="row small-margin">
+          <div class="col max" id="texte">
+            Si vous avez fait des bonnes affaires grâce aux listings des offres du market-place ou si
+            vos souhaitez me remercier, vous pouvez m'envoyer une carte parmi celles qui me manquent
+            ou encore voter pour moi au prochain concours !
+            <br>
+            Merci aux donateurs : WorZeX, Jules_crb, Simple, Tresingo, Ambassadeur !
+          </div>
+          <div class="col max m l">
+            <a class="chip primary center medium-elevate vertical" href="user.html?user=julienm"><i class="small">person_search</i>JulienM</a>
+          </div>
+        </div>
+        <a class="chip primary center medium-elevate s" href="user.html?user=julienm"><i class="small">person_search</i>JulienM</a>
+        <div class="space"></div>
+        <div class="field textarea label border extra small-margin">
+          <textarea id="msg"></textarea>
+          <label>Message</label>
+        </div>
+        <div class="right-align">
+          <button class="border secondary-text" onClick="sendClicked();">
+            <i>send</i>
+            <span id="btnText">Envoyer</span>
+          </button>
+        </div>
+      </article>
+    </div>
+  </div>
+</div>
+</main>
+</body>
+</html>
