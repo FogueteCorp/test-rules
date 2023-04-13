@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Export csv des ventes</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="color-scheme" content="dark light">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<script src="js/cards.js?v=1"></script>
+<script src="js/listings.js?v=1"></script>
+<script src="js/costs.js?v=1"></script>
+<script>
+allCardModels = allCardModels.data.allCardModels;
+
+function listings(hits, ethEurRate) {
+  let priceFmt = new Intl.NumberFormat([], {useGrouping: false, maximumSignificantDigits: 6});
+
+  let t = "cardFull;artist;scarcity;serial;priceETH;priceEUR;date<br>";
+
+  for( const listing of hits ) {
+    let priceETH = parseInt(listing.price, 16)/10**18;
+    let priceEUR = priceETH * ethEurRate;
+
+    let card = cardInfo(listing.cardModelId);
+    let date = new Date(listing.date);
+
+    let scarcity = card.scarcity.name;
+    let artist = card.artist.displayName;
+
+    t += card.slug + ";" + artist + ";" + scarcity + ";" + listing.serialNumber + ";"
+       + priceFmt.format(priceETH) + ";" + priceFmt.format(priceEUR) + ";" + date.toLocaleString() + "<br>";
+  }
+
+  document.body.innerHTML = t;
+};
+
+function cardInfo(modelId) {
+  return allCardModels.find(({ id }) => id == modelId);
+}
+
+// main
+async function main() {
+  let prm = [];
+  prm.push(fetchEthPrice().then(res => parseFloat(res.data.amount)));
+
+  let blocks = [0,125,250,350,600,900,1250,1700,2000,2250,2500,2750,3000,3250,3500];
+  for( var i=0; i<blocks.length; i++ ) {
+    if( i==blocks.length-1 )
+      prm.push(fetchTransfers("serialNumber>"+blocks[blocks.length-1], "price:-0000000000000000000000"));
+    else 
+      prm.push(fetchTransfers("serialNumber>"+blocks[i]+" AND serialNumber<="+blocks[i+1], "price:-0000000000000000000000"));
+  }
+
+  let res = await Promise.all(prm);
+  let ethEurRate = res[0];
+  let hits = [];
+  for( var h=1; h<res.length; h++ ) {
+    hits = hits.concat(res[h].hits);
+    if( res[h].hits.length>=1000 ) window.alert("Résultats manquants, signalez-moi le problème si il persiste");
+    console.log(res[h].hits.length);
+  }
+
+  listings(hits, ethEurRate);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  main();
+});
+
+</script>
+</head>
+<body>
+</body>
+</html>

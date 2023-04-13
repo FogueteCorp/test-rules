@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Description des packs</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0061a6">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.css" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.1.0/dist/cdn/beer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@0.1.7/dist/cdn/material-dynamic-colors.min.js"></script>
+<script src="js/cards.js?v=2"></script>
+<script src="js/listings.js?v=3"></script>
+<script>
+var nbUsers = 25702;
+var closedPacks = {"Launch Pack S1":1364,"Honey Base Pack":65,"Halloween Pack":420,"Wave Base Pack":136,"Dark Base Pack":86,"Santa Pack":272,"Blood Base Pack":73,"Nova Base Pack":110,"Alien Base Pack":71,"Quartz Base Pack":78,"Magic Base Pack":91,"Haze Base Pack":62,"Barz Base Pack":97,"Bronze Base Pack":96,"OG Base Pack":102,"Lemon Base Pack":92,"Starter Pack S1":191,"Kush Base Pack":80};
+var usersWithPack = {"Launch Pack S1":915,"Honey Base Pack":65,"Halloween Pack":313,"Wave Base Pack":95,"Dark Base Pack":65,"Santa Pack":177,"Blood Base Pack":56,"Nova Base Pack":77,"Alien Base Pack":56,"Quartz Base Pack":60,"Magic Base Pack":64,"Haze Base Pack":46,"Barz Base Pack":67,"Bronze Base Pack":66,"OG Base Pack":68,"Lemon Base Pack":60,"Starter Pack S1":191,"Kush Base Pack":80};
+
+allCardModels = allCardModels.data.allCardModels;
+
+function cardInfo(s) {
+  return allCardModels.find(({ slug }) => slug == s);
+}
+
+function showCards(cards, total) {
+  let t = "<div class='cards small-text'>";
+  for( c of cards ) {
+    quantity = c.quantity==null ? total/cards.length : c.quantity;
+    perc = (100*quantity/total);
+    t += "<div class='card'><a href='cards.html?card=" + c.cardModel.id +"'>" + "<img src='" + c.cardModel.pictureUrl + "'></a>"
+       + "<div><a href='https://rules.art/card/" + c.cardModel.slug + "'>" + quantity.toFixed(0) + "</a></div>"
+       + "<div class='perc'>" + (perc).toFixed(perc>0.1 ? 1 : 2) + "%</div>"
+       + "</div>";
+  }
+  return t + "</div>";
+}
+
+// table creation and population
+function createPack(img, summary, details) {
+  return `
+<div class="l6 m12 s12">
+  <article>
+    <details>
+      <summary class="none">
+        <div class="row">
+          <img src="${img}">
+          <div class="max">
+            ${summary}
+          <\/div>
+          <i class="extra">arrow_drop_down<\/i>
+        <\/div>
+      <\/summary>
+      <p>${details}<\/p>
+    <\/details>
+  <\/article>
+<\/div>`;
+}
+
+function showPack(p) {
+  let total = ((p.maxSupply != null ) ? p.maxSupply : p.supply) * p.cardsPerPack;
+  let closed = closedPacks[p.displayName]!==undefined ? closedPacks[p.displayName] : -1;
+  let userClosed = usersWithPack[p.displayName]!==undefined ? usersWithPack[p.displayName] : -1;
+
+  let nbCommon = 0, nbPlatinium = 0;
+  for( c of p.cardModels ) {
+    quantity = c.quantity==null ? total/p.cardModels.length : c.quantity;
+    info = cardInfo(c.cardModel.slug);
+    if( info.scarcity.name == "Common" ) nbCommon += quantity;
+    if( info.scarcity.name == "Platinium" ) nbPlatinium += quantity;
+  }
+  let percPlat = nbPlatinium>0 ? nbPlatinium/(nbPlatinium+nbCommon) : 0;
+
+  let date = new Date(p.releaseDate);
+  let url = "https://rules.art/pack/" + p.slug;
+  let t = "<a href='" + url + "'><h6>" + p.displayName + "</h6></a><div class='secondary-text'>"
+        + (p.maxBuyableSupply != null ? p.maxBuyableSupply + " packs, " : "")
+        + " mis en vente le " + date.toLocaleDateString()
+         + ", max. "+ p.availableQuantity + " par compte"
+        + "</div><div class='secondary-text'>contient " + p.cardModelsCount + " cartes différentes"
+        + (percPlat>0 ? ", " + (100*percPlat).toFixed(percPlat>0.06 ? 0 : 1) + "% de platine, " + (100*(1-(1-percPlat)**3)).toFixed(1) + "% de packs avec au moins une platine" : "")
+        + "</div><div class='secondary-text'>distribué à " + p.supply + " exemplaires"
+        + (closed>0 ? " dont " + closed + " toujours scellés (" + (100*closed/p.supply).toFixed(1) + "%)" : "")
+        + (userClosed>0 && userClosed!=closed ? " détenus par " + userClosed + " comptes" : "")
+        + "</div>";
+  document.querySelector("#packs").innerHTML += createPack(p.pictureUrl, t, showCards(p.cardModels, total));
+}
+
+// main
+async function main() {
+  document.querySelector("#update").innerHTML = document.querySelector("#update-2").innerHTML = "<a class='loader small'></a>Chargement ...";
+  let packs = (await fetchClassicPacks()).data.allClassicPacks.nodes;
+  packs.push((await fetchLastStarterPack()).data.lastStarterPack);
+  document.querySelector("#packs").innerHTML = "";
+  for( p of packs ) showPack(p);
+  document.querySelector("#update").innerHTML = document.querySelector("#update-2").innerHTML = "<i>query_stats</i>Statistiques tirées de " + nbUsers + " collectionneurs";
+}
+
+ready(function() {
+  initDarkMode();
+  main();
+});
+</script>
+<style>
+  :root {--size: 15.2px;}
+  nav {min-height: 48px !important;}
+  #packs a:hover {text-decoration: underline;}
+  .card {display: inline-block;}
+  .card img {width: 48px; border-radius: 4px;}
+  .perc {color: #777;}
+</style>
+</head>
+<body class="light">
+  <nav class="primary no-space s">
+    <div class="space"></div>
+    <a class="circle round small" href="index.html"><i class="small">home</i></a>
+    <a class="circle round small" href="offers.html"><i class="small">shopping_cart</i></a>
+    <a class="circle round small" href="transfers.html"><i class="small">receipt_long</i></a>
+    <a class="circle round small" href="user.html"><i class="small">person_search</i></a>
+    <a class="circle round small" href="fee.html"><i class="small">currency_exchange</i></a>
+    <a class="primary-container medium-elevate circle round small" href="packs.html"><i class="small">view_carousel</i></a>
+    <a class="circle round small" href="cards.html"><i class="small">filter_1</i></a>
+    <a class="circle round small" href="fame.html"><i class="small">workspace_premium</i></a>
+    <div class="max"></div>
+    <a class="circle round small" href="feedback.html"><i class="small">campaign</i></a>
+    <button class="circle transparent" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i class="small">light_mode</i></button>
+  </nav>
+<header class="responsive fixed primary medium-elevate m l">
+  <nav>
+    <a href="index.html" class="button circle transparent"><i>home</i></a>
+    <a href="offers.html" class="chip transparent"><i>shopping_cart</i>Offres</a>
+    <a href="transfers.html" class="chip transparent"><i>receipt_long</i>Ventes</a>
+    <a href="user.html" class="chip transparent"><i>person_search</i>Profils</a>
+    <a href="fee.html" class="chip transparent"><i>currency_exchange</i>Frais</a>
+    <a href="packs.html" class="chip primary-container medium-elevate"><i>view_carousel</i>Packs</a>
+    <a href="cards.html" class="chip transparent"><i>filter_1</i>Cartes</a>
+    <a href="fame.html" class="chip transparent"><i>workspace_premium</i>Hall of Fame</a>
+    <div class="max"></div>
+    <span id="update" class="chip fill l"></span>
+    <a href="feedback.html" class="button circle transparent"><i>campaign</i></a>
+    <a class="button transparent circle" onClick="ui('mode', ui('mode')=='dark'?'light':'dark')"><i>light_mode</i></a>
+  </nav>
+</header>
+<main>
+<div id="update-2" class="chip fill center small-margin s m"></div>
+<div id="packs" class="grid small-margin"></div>
+</main>
+</body>
+</html>

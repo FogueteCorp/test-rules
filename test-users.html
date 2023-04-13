@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Histogram of owned cards</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="color-scheme" content="dark light">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+<script src="js/users.js?v=1"></script>
+<script src="js/listings.js?v=1"></script>
+<script>
+users = allUserIds.data.users;
+
+var counters = {};
+var processed = 0;
+var whales = [];
+
+async function sumCards(json, userAddress) {
+  processed++;
+  let q = json.hits.length;
+  if( q>60 ) {
+    let whaleName = (await fetchUserNames([userAddress])).data.usersByStarknetAddresses[0].username;
+    whales.push(whaleName + " -> " + q);
+    //console.log(whales);
+  }
+  if( q in counters )
+    counters[q]++;
+  else
+    counters[q] = 1;
+};
+
+// main
+async function main() {
+  let nbUsers = users.length;
+  let block = 1;
+  for( var u=0; u<nbUsers; u++ ) {
+    let address = users[u].starknetWallet.address;
+    sumCards(await fetchRoster(address), address);
+    document.body.innerHTML = "user processed: " + processed + "/" + nbUsers + " - users with > 60 cards: " + whales.length + "<br>"
+                            + "total packs: " + JSON.stringify(counters);
+  }
+  document.body.innerHTML += "<br>" + whales;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  main();
+});
+
+</script>
+</head>
+<body>
+</body>
+</html>
